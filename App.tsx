@@ -9,6 +9,8 @@ import { SearchIcon, BuildingStorefrontIcon, XMarkIcon, ArrowUpIcon, ChevronDown
 import AuthGuard from './components/AuthGuard';
 import UserMenu from './components/UserMenu';
 import Subscription from './components/Subscription';
+import WelcomeBanner from './components/WelcomeBanner';
+import Onboarding from './components/Onboarding';
 
 const categories = ["All", "AI", "SaaS", "Health & Wellness", "E-commerce", "FinTech", "Gaming", "Creator Economy", "Future of Work"];
 const topicsPerPage = 12;
@@ -179,6 +181,15 @@ const App: React.FC = () => {
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
     const [sortOrder, setSortOrder] = useState<string>('growth_desc');
     
+    // First-time user detection and onboarding
+    const [isFirstTime, setIsFirstTime] = useState<boolean>(false);
+    const [showWelcome, setShowWelcome] = useState<boolean>(false);
+    const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+    const [searchCount, setSearchCount] = useState<number>(0);
+    const [showSubscriptionBanner, setShowSubscriptionBanner] = useState<boolean>(false);
+    const [showTimeRangeHint, setShowTimeRangeHint] = useState<boolean>(false);
+    const [showCategoryHint, setShowCategoryHint] = useState<boolean>(false);
+    
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
@@ -191,23 +202,52 @@ const App: React.FC = () => {
                     console.error('Error loading subscription info:', error);
                 }
 
-                // Load business context from Firestore
+                // Load business context from Firestore and detect first-time user
                 try {
                     const contextDoc = await getDoc(doc(db, 'businessContext', currentUser.uid));
                     if (contextDoc.exists()) {
-                        setBusinessContext(contextDoc.data().context || '');
+                        const context = contextDoc.data().context || '';
+                        setBusinessContext(context);
+                        // First-time user = no business context
+                        const isFirst = !context;
+                        setIsFirstTime(isFirst);
+                        if (isFirst) {
+                            setShowWelcome(true);
+                        }
+                    } else {
+                        // No document exists = first-time user
+                        setIsFirstTime(true);
+                        setBusinessContext('');
+                        setShowWelcome(true);
                     }
                 } catch (error) {
                     console.error('Error loading business context:', error);
+                    setIsFirstTime(true);
+                    setShowWelcome(true);
                 }
             } else {
                 setSubscriptionTier('free');
                 setBusinessContext('');
+                setIsFirstTime(false);
+                setShowWelcome(false);
+                setShowOnboarding(false);
+                setSearchCount(0);
+                setShowSubscriptionBanner(false);
             }
         });
 
         return () => unsubscribe();
     }, []);
+
+    // Show onboarding prompt for first-time users after a short delay
+    useEffect(() => {
+        if (isFirstTime && user && !businessContext) {
+            const timer = setTimeout(() => {
+                setShowOnboarding(true);
+            }, 2000); // Show after 2 seconds
+            return () => clearTimeout(timer);
+        }
+    }, [isFirstTime, user, businessContext]);
     
     useEffect(() => {
         if (!user) return;
@@ -251,6 +291,27 @@ const App: React.FC = () => {
         e.preventDefault();
         setCurrentPage(1);
         setActiveSearchQuery(searchTerm);
+        
+        // Track search count for progressive feature reveal
+        if (searchTerm) {
+            const newCount = searchCount + 1;
+            setSearchCount(newCount);
+            
+            // Show time range hint after first search
+            if (newCount === 1) {
+                setShowTimeRangeHint(true);
+            }
+            
+            // Show category hint after 2 searches
+            if (newCount === 2) {
+                setShowCategoryHint(true);
+            }
+            
+            // Show subscription banner after 3-5 searches (for free users)
+            if (subscriptionTier === 'free' && newCount >= 3 && newCount <= 5) {
+                setShowSubscriptionBanner(true);
+            }
+        }
     };
 
     const handleClearSearch = () => {
@@ -274,6 +335,8 @@ const App: React.FC = () => {
                 updatedAt: new Date(),
             });
             setBusinessContext(newContext);
+            setIsFirstTime(false);
+            setShowOnboarding(false);
             setCurrentPage(1);
             setSelectedCategory('All');
         } catch (error) {
@@ -358,6 +421,12 @@ const App: React.FC = () => {
                     user={user}
                     subscriptionTier={subscriptionTier}
                 />
+                {showWelcome && user && (
+                    <WelcomeBanner
+                        userName={user.email || undefined}
+                        onDismiss={() => setShowWelcome(false)}
+                    />
+                )}
                 <BusinessContextPanel 
                     isOpen={isPanelOpen} 
                     onClose={() => setIsPanelOpen(false)} 
@@ -365,9 +434,16 @@ const App: React.FC = () => {
                     onSave={handleSaveContext}
                     subscriptionTier={subscriptionTier}
                 />
+                <Onboarding
+                    isOpen={showOnboarding}
+                    onClose={() => setShowOnboarding(false)}
+                    onSave={handleSaveContext}
+                    subscriptionTier={subscriptionTier}
+                    currentContext={businessContext}
+                />
                 <main>
                     <div className="container mx-auto px-6">
-                        {subscriptionTier === 'free' && (
+                        {subscriptionTier === 'free' && showSubscriptionBanner && (
                             <div className="py-6">
                                 <Subscription />
                             </div>
@@ -411,7 +487,12 @@ const App: React.FC = () => {
                         </section>
 
                         <section className="pb-16">
-                            <div className="flex items-center justify-center p-1 mb-8 bg-gray-200/60 rounded-lg max-w-md mx-auto">
+                            <div className="relative flex items-center justify-center p-1 mb-8 bg-gray-200/60 rounded-lg max-w-md mx-auto">
+                                {showTimeRangeHint && (
+                                    <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg animate-pulse">
+                                        Try different time ranges →
+                                    </div>
+                                )}
                                 {timeRanges.map(range => (
                                     <button
                                         key={range}
@@ -419,6 +500,7 @@ const App: React.FC = () => {
                                             if (timeRange !== range) {
                                                 setTimeRange(range);
                                                 setCurrentPage(1);
+                                                setShowTimeRangeHint(false);
                                             }
                                         }}
                                         className={`w-full px-3 py-2 text-sm font-semibold rounded-md transition-all duration-300 ${
@@ -432,7 +514,12 @@ const App: React.FC = () => {
                                 ))}
                             </div>
 
-                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 p-4 mb-10 bg-white/60 backdrop-blur-sm rounded-xl border border-gray-200/80">
+                            <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 p-4 mb-10 bg-white/60 backdrop-blur-sm rounded-xl border border-gray-200/80">
+                                {showCategoryHint && (
+                                    <div className="absolute -top-12 left-0 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg animate-pulse">
+                                        Filter by category →
+                                    </div>
+                                )}
                                 <div className="flex-grow">
                                     <div className="flex items-center flex-wrap gap-2">
                                         {categories.map(category => (
@@ -442,6 +529,7 @@ const App: React.FC = () => {
                                                     if (selectedCategory !== category) {
                                                         setSelectedCategory(category);
                                                         setCurrentPage(1);
+                                                        setShowCategoryHint(false);
                                                     }
                                                 }}
                                                 className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all duration-300 ${

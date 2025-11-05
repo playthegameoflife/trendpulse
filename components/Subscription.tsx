@@ -37,9 +37,12 @@ const Subscription: React.FC = () => {
   const isNearLimit = usage.limit !== Infinity && usagePercentage >= 80;
 
   return (
-    <div className="bg-white/70 p-6 rounded-xl border border-gray-200/80">
+    <div className="bg-white/70 p-6 rounded-xl border border-gray-200/80 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-[#1d1d1f]">Subscription</h3>
+        <div>
+          <h3 className="text-lg font-bold text-[#1d1d1f]">You've discovered {usage.current} trends</h3>
+          <p className="text-sm text-gray-600 mt-1">Want unlimited access?</p>
+        </div>
         <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
           subscriptionTier === 'pro'
             ? 'bg-purple-100 text-purple-700'
@@ -76,7 +79,7 @@ const Subscription: React.FC = () => {
           <button
             onClick={handleUpgrade}
             disabled={upgrading}
-            className="w-full bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-purple-600 text-white font-semibold py-2.5 px-4 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
           >
             {upgrading ? (
               <>

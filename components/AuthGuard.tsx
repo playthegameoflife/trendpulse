@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../services/firebaseConfig';
-import Auth from './Auth';
+import Landing from './Landing';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -10,15 +10,11 @@ interface AuthGuardProps {
 const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
-      if (!user) {
-        setShowAuth(true);
-      }
     });
 
     return () => unsubscribe();
@@ -37,13 +33,12 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
 
   if (!user) {
     return (
-      <>
-        <Auth
-          isOpen={showAuth}
-          onClose={() => setShowAuth(false)}
-          onSuccess={() => setShowAuth(false)}
-        />
-      </>
+      <Landing
+        onSignup={() => {
+          // After signup, the auth state will change and user will be set
+          // This will automatically show the main app
+        }}
+      />
     );
   }
 
