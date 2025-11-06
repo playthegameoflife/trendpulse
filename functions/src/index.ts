@@ -8,8 +8,9 @@ import { stripeWebhook } from './stripeWebhook';
 
 admin.initializeApp();
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-11-20.acacia',
+const stripeConfig = functions.config().stripe || {};
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || stripeConfig.secret_key || '', {
+  apiVersion: '2023-10-16',
 });
 
 // Main API endpoint for fetching topics
@@ -53,6 +54,15 @@ export const getTrendingTopics = functions.https.onCall(async (data, context) =>
       );
     }
 
+    // Log request context for debugging
+    console.log('Fetching topics:', {
+      userId,
+      timeRange,
+      category: category || 'All',
+      hasSearchTerm: !!searchTerm,
+      hasBusinessContext: !!businessContext
+    });
+
     // 5. Fetch topics from Gemini
     const topics = await fetchTrendingTopics(
       timeRange,
@@ -69,10 +79,31 @@ export const getTrendingTopics = functions.https.onCall(async (data, context) =>
     if (error instanceof functions.https.HttpsError) {
       throw error;
     }
-    console.error('Error in getTrendingTopics:', error);
+    
+    // Log detailed error information
+    const errorContext = {
+      userId,
+      timeRange,
+      category: category || 'All',
+      hasSearchTerm: !!searchTerm,
+      hasBusinessContext: !!businessContext,
+      errorMessage: error.message,
+      errorStack: error.stack
+    };
+    console.error('Error in getTrendingTopics:', errorContext);
+    
+    // Preserve original error message if available
+    const errorMessage = error.message || 'Failed to fetch trending topics. Please try again.';
+    
+    // Add context about what failed
+    let contextMessage = errorMessage;
+    if (category && category !== 'All') {
+      contextMessage = `${errorMessage} (Category: ${category})`;
+    }
+    
     throw new functions.https.HttpsError(
       'internal',
-      'Failed to fetch trending topics. Please try again.'
+      contextMessage
     );
   }
 });
@@ -140,13 +171,13 @@ export const createCheckoutSession = functions.https.onCall(async (data, context
       payment_method_types: ['card'],
       line_items: [
         {
-          price: process.env.STRIPE_PRO_PRICE_ID,
+          price: process.env.STRIPE_PRO_PRICE_ID || stripeConfig.pro_price_id,
           quantity: 1,
         },
       ],
       mode: 'subscription',
-      success_url: `${process.env.WEBAPP_URL || 'http://localhost:3000'}/subscription?success=true`,
-      cancel_url: `${process.env.WEBAPP_URL || 'http://localhost:3000'}/subscription?canceled=true`,
+      success_url: `${process.env.WEBAPP_URL || stripeConfig.webapp?.url || 'http://localhost:3000'}?stripe=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.WEBAPP_URL || stripeConfig.webapp?.url || 'http://localhost:3000'}?stripe=canceled`,
       metadata: {
         userId,
       },

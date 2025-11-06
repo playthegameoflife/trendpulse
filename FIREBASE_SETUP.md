@@ -85,18 +85,17 @@ This guide will help you set up Firebase for TrendPulse AI SaaS.
 
 ## Step 7: Set Up Stripe
 
+**For detailed Stripe setup instructions, see [STRIPE_SETUP.md](./STRIPE_SETUP.md)**
+
+Quick summary:
 1. Create a Stripe account at https://stripe.com
 2. Get your API keys from Stripe Dashboard
 3. Create a product for Pro tier ($19/month subscription)
 4. Copy the Price ID
-5. Set up webhook endpoint in Stripe Dashboard:
-   - URL: `https://YOUR_REGION-YOUR_PROJECT.cloudfunctions.net/stripeWebhook`
-   - Events to listen to:
-     - `checkout.session.completed`
-     - `customer.subscription.created`
-     - `customer.subscription.updated`
-     - `customer.subscription.deleted`
-6. Copy the webhook signing secret
+5. Set up webhook endpoint in Stripe Dashboard
+6. Configure environment variables in Firebase Functions
+
+See [STRIPE_SETUP.md](./STRIPE_SETUP.md) for complete step-by-step instructions.
 
 ## Step 8: Deploy
 

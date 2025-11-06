@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { createStripeCheckout, SubscriptionTier } from '../services/subscriptionService';
-import { CheckIcon, SparklesIcon } from './icons';
+import { CheckIcon, SparklesIcon, XMarkIcon } from './icons';
 
 interface PricingPageProps {
   currentTier: SubscriptionTier;
-  onUpgrade: () => void;
+  onClose?: () => void;
 }
 
-const PricingPage: React.FC<PricingPageProps> = ({ currentTier, onUpgrade }) => {
+const PricingPage: React.FC<PricingPageProps> = ({ currentTier, onClose }) => {
   const [upgrading, setUpgrading] = useState(false);
 
   const handleUpgrade = async () => {
@@ -22,134 +22,131 @@ const PricingPage: React.FC<PricingPageProps> = ({ currentTier, onUpgrade }) => 
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-16 px-6">
-      <div className="text-center mb-12">
-        <h2 className="text-4xl font-bold text-[#1d1d1f] mb-4">Choose Your Plan</h2>
-        <p className="text-lg text-gray-600">Find the perfect plan for your needs</p>
+    <div className="min-h-screen bg-[#f5f5f7] overflow-y-auto">
+      {/* Hero Section */}
+      <div className="text-center pt-20 pb-16 px-6">
+        <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-[#1d1d1f] mb-6">
+          Unlock unlimited discovery
+        </h1>
+        <p className="text-xl md:text-2xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+          From limited to limitless. Discover what's next, without limits.
+        </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8">
-        {/* Free Tier */}
-        <div className={`bg-white rounded-xl border-2 p-8 ${
-          currentTier === 'free' ? 'border-purple-500' : 'border-gray-200'
-        }`}>
-          <div className="mb-6">
-            <h3 className="text-2xl font-bold text-[#1d1d1f] mb-2">Free</h3>
-            <div className="flex items-baseline">
-              <span className="text-4xl font-bold text-[#1d1d1f]">$0</span>
-              <span className="text-gray-600 ml-2">/month</span>
+      {/* Pricing Cards */}
+      <div className="max-w-6xl mx-auto px-6 pb-20">
+        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          {/* Free Tier - Elegant but Limited */}
+          <div className={`bg-white rounded-2xl border-2 p-10 transition-all ${
+            currentTier === 'free' ? 'border-purple-300 shadow-lg' : 'border-gray-200'
+          }`}>
+            <div className="mb-8">
+              <h3 className="text-3xl font-bold text-[#1d1d1f] mb-3">Free</h3>
+              <div className="flex items-baseline">
+                <span className="text-5xl font-black text-[#1d1d1f]">$0</span>
+                <span className="text-lg text-gray-500 ml-2">/month</span>
+              </div>
             </div>
+
+            <div className="space-y-4 mb-10">
+              <div className="flex items-start">
+                <CheckIcon className="w-6 h-6 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
+                <span className="text-gray-600 text-lg">10 discoveries per month</span>
+              </div>
+              <div className="flex items-start">
+                <CheckIcon className="w-6 h-6 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
+                <span className="text-gray-600 text-lg">Basic trend discovery</span>
+              </div>
+              <div className="flex items-start">
+                <CheckIcon className="w-6 h-6 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
+                <span className="text-gray-600 text-lg">Category filtering</span>
+              </div>
+            </div>
+
+            {currentTier === 'free' ? (
+              <button
+                disabled
+                className="w-full bg-gray-100 text-gray-500 font-semibold py-4 px-6 rounded-xl cursor-not-allowed text-lg"
+              >
+                Current Plan
+              </button>
+            ) : (
+              <div className="h-14"></div>
+            )}
           </div>
 
-          <ul className="space-y-3 mb-8">
-            <li className="flex items-start">
-              <CheckIcon className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-              <span className="text-gray-700">10 searches per month</span>
-            </li>
-            <li className="flex items-start">
-              <CheckIcon className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-              <span className="text-gray-700">Basic trend discovery</span>
-            </li>
-            <li className="flex items-start">
-              <CheckIcon className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-              <span className="text-gray-700">Category filtering</span>
-            </li>
-            <li className="flex items-start">
-              <XMarkIcon className="w-5 h-5 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
-              <span className="text-gray-500 line-through">Business context personalization</span>
-            </li>
-          </ul>
+          {/* Pro Tier - Hero Treatment */}
+          <div className={`bg-gradient-to-br from-purple-50 to-white rounded-2xl border-2 p-10 relative transition-all transform ${
+            currentTier === 'pro' ? 'border-purple-300 shadow-xl' : 'border-purple-500 shadow-2xl scale-[1.02]'
+          }`}>
+            {currentTier !== 'pro' && (
+              <div className="absolute -top-4 right-6 bg-purple-600 text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg">
+                Recommended
+              </div>
+            )}
 
-          {currentTier === 'free' && (
-            <button
-              disabled
-              className="w-full bg-gray-200 text-gray-600 font-semibold py-3 px-4 rounded-lg cursor-not-allowed"
-            >
-              Current Plan
-            </button>
-          )}
-        </div>
-
-        {/* Pro Tier */}
-        <div className={`bg-white rounded-xl border-2 p-8 relative ${
-          currentTier === 'pro' ? 'border-purple-500' : 'border-purple-500'
-        }`}>
-          {currentTier !== 'pro' && (
-            <div className="absolute top-0 right-0 bg-purple-600 text-white px-4 py-1 rounded-bl-lg rounded-tr-xl text-sm font-semibold">
-              Popular
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-3">
+                <h3 className="text-3xl font-bold text-[#1d1d1f]">Pro</h3>
+                <SparklesIcon className="w-6 h-6 text-purple-600" />
+              </div>
+              <div className="flex items-baseline">
+                <span className="text-5xl font-black text-[#1d1d1f]">$19</span>
+                <span className="text-lg text-gray-500 ml-2">/month</span>
+              </div>
             </div>
-          )}
 
-          <div className="mb-6">
-            <h3 className="text-2xl font-bold text-[#1d1d1f] mb-2">Pro</h3>
-            <div className="flex items-baseline">
-              <span className="text-4xl font-bold text-[#1d1d1f]">$19</span>
-              <span className="text-gray-600 ml-2">/month</span>
+            <div className="space-y-4 mb-10">
+              <div className="flex items-start">
+                <CheckIcon className="w-6 h-6 text-purple-600 mr-3 mt-0.5 flex-shrink-0" />
+                <span className="text-[#1d1d1f] font-semibold text-lg">Unlimited discoveries</span>
+              </div>
+              <div className="flex items-start">
+                <CheckIcon className="w-6 h-6 text-purple-600 mr-3 mt-0.5 flex-shrink-0" />
+                <span className="text-[#1d1d1f] font-semibold text-lg">Personalized insights</span>
+              </div>
+              <div className="flex items-start">
+                <CheckIcon className="w-6 h-6 text-purple-600 mr-3 mt-0.5 flex-shrink-0" />
+                <span className="text-[#1d1d1f] font-semibold text-lg">All advanced features</span>
+              </div>
+              <div className="flex items-start">
+                <CheckIcon className="w-6 h-6 text-purple-600 mr-3 mt-0.5 flex-shrink-0" />
+                <span className="text-[#1d1d1f] font-semibold text-lg">Priority support</span>
+              </div>
             </div>
+
+            {currentTier === 'pro' ? (
+              <button
+                disabled
+                className="w-full bg-gray-100 text-gray-500 font-semibold py-4 px-6 rounded-xl cursor-not-allowed text-lg"
+              >
+                Current Plan
+              </button>
+            ) : (
+              <button
+                onClick={handleUpgrade}
+                disabled={upgrading}
+                className="w-full bg-purple-600 text-white font-bold py-4 px-6 rounded-xl hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] flex items-center justify-center gap-2"
+              >
+                {upgrading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    Start discovering
+                    <SparklesIcon className="w-5 h-5" />
+                  </>
+                )}
+              </button>
+            )}
           </div>
-
-          <ul className="space-y-3 mb-8">
-            <li className="flex items-start">
-              <CheckIcon className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-              <span className="text-gray-700">Unlimited searches</span>
-            </li>
-            <li className="flex items-start">
-              <CheckIcon className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-              <span className="text-gray-700">Business context personalization</span>
-            </li>
-            <li className="flex items-start">
-              <CheckIcon className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-              <span className="text-gray-700">All advanced features</span>
-            </li>
-            <li className="flex items-start">
-              <CheckIcon className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-              <span className="text-gray-700">Priority support</span>
-            </li>
-          </ul>
-
-          {currentTier === 'pro' ? (
-            <button
-              disabled
-              className="w-full bg-gray-200 text-gray-600 font-semibold py-3 px-4 rounded-lg cursor-not-allowed"
-            >
-              Current Plan
-            </button>
-          ) : (
-            <button
-              onClick={handleUpgrade}
-              disabled={upgrading}
-              className="w-full bg-purple-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-            >
-              {upgrading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <SparklesIcon className="w-5 h-5" />
-                  Upgrade to Pro
-                </>
-              )}
-            </button>
-          )}
         </div>
       </div>
     </div>
   );
 };
-
-const CheckIcon: React.FC<{className?: string}> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className || "w-6 h-6"}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-  </svg>
-);
-
-const XMarkIcon: React.FC<{className?: string}> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className || "w-6 h-6"}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-  </svg>
-);
 
 export default PricingPage;
 

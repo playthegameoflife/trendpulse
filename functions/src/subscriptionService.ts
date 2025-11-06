@@ -1,6 +1,12 @@
 import * as admin from 'firebase-admin';
 
-const db = admin.firestore();
+// Lazy initialization to avoid circular dependency
+function getDb() {
+  if (!admin.apps.length) {
+    admin.initializeApp();
+  }
+  return admin.firestore();
+}
 
 export type SubscriptionTier = 'free' | 'pro';
 
@@ -14,6 +20,7 @@ export interface UserSubscription {
 
 export async function getSubscriptionTier(userId: string): Promise<SubscriptionTier> {
   try {
+    const db = getDb();
     const userDoc = await db.collection('users').doc(userId).get();
     
     if (!userDoc.exists) {
@@ -35,6 +42,7 @@ export async function getSubscriptionTier(userId: string): Promise<SubscriptionT
 
 export async function getUserSubscription(userId: string): Promise<UserSubscription | null> {
   try {
+    const db = getDb();
     const subscriptionsRef = db.collection('subscriptions')
       .where('userId', '==', userId)
       .where('status', '==', 'active')
@@ -68,6 +76,7 @@ export async function getUserSubscription(userId: string): Promise<UserSubscript
 
 export async function updateSubscriptionTier(userId: string, tier: SubscriptionTier): Promise<void> {
   try {
+    const db = getDb();
     await db.collection('users').doc(userId).update({
       subscriptionTier: tier,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),

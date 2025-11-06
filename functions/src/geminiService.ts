@@ -1,6 +1,7 @@
+import * as functions from 'firebase-functions';
 import { GoogleGenAI, Type } from "@google/genai";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || functions.config().gemini?.api_key;
 
 if (!GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY environment variable is not set.");
@@ -44,6 +45,11 @@ export const fetchTrendingTopics = async (
   businessContext?: string | null,
   category?: string | null
 ): Promise<Topic[]> => {
+  // Validate category parameter
+  if (category && typeof category !== 'string') {
+    throw new Error('Invalid category parameter. Category must be a string.');
+  }
+
   const basePrompt = `Generate a diverse list of 100 real, "exploding topics" that are showing rapid growth in interest. These should be recent and relevant.`;
 
   let coreInstruction = '';
@@ -79,14 +85,64 @@ For each topic, provide a unique slug-like id, a name, a category, a short one-s
       },
     });
 
-    const jsonText = response.text.trim();
-    const parsed = JSON.parse(jsonText);
+    const text = response.text;
+    if (!text) {
+      throw new Error('Empty response from AI service. Please try again.');
+    }
+    const jsonText = text.trim();
+    
+    // Validate JSON response
+    if (!jsonText) {
+      throw new Error('Empty response from AI service. Please try again.');
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch (parseError: any) {
+      console.error('JSON parsing error:', parseError);
+      console.error('Response text:', jsonText.substring(0, 500));
+      throw new Error(`Failed to parse AI response. The service returned invalid data. Please try again.`);
+    }
+
     const topics = parsed.topics || [];
     
+    // Validate topics array
+    if (!Array.isArray(topics)) {
+      throw new Error('Invalid response format from AI service. Expected an array of topics.');
+    }
+
+    if (topics.length === 0) {
+      throw new Error('No topics were generated. Please try a different category or time range.');
+    }
+    
     return topics;
-  } catch (error) {
-    console.error("Error fetching trending topics:", error);
-    throw new Error("Failed to generate topics from AI. Please check your API key and try again.");
+  } catch (error: any) {
+    // Re-throw if it's already a formatted error
+    if (error.message && error.message.includes('Failed to') || error.message.includes('Invalid')) {
+      throw error;
+    }
+
+    // Handle API-specific errors
+    if (error.message && error.message.includes('API')) {
+      throw new Error('AI service is temporarily unavailable. Please try again in a moment.');
+    }
+
+    // Handle quota/rate limit errors
+    if (error.message && (error.message.includes('quota') || error.message.includes('rate limit'))) {
+      throw new Error('AI service quota exceeded. Please try again later.');
+    }
+
+    // Log the full error for debugging
+    console.error("Error fetching trending topics from Gemini:", {
+      error: error.message,
+      category: category || 'All',
+      timeRange,
+      stack: error.stack
+    });
+
+    // Provide a user-friendly error message
+    throw new Error(`Failed to generate topics${category && category !== 'All' ? ` for category "${category}"` : ''}. Please try again or select a different category.`);
   }
 };
 

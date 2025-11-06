@@ -1,7 +1,13 @@
 import * as admin from 'firebase-admin';
 import { getSubscriptionTier } from './subscriptionService';
 
-const db = admin.firestore();
+// Lazy initialization to avoid circular dependency
+function getDb() {
+  if (!admin.apps.length) {
+    admin.initializeApp();
+  }
+  return admin.firestore();
+}
 
 const FREE_TIER_LIMIT = 10; // 10 searches per month
 
@@ -17,6 +23,7 @@ export async function checkUsageLimit(userId: string): Promise<boolean> {
     // Free tier: check monthly usage
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const db = getDb();
     
     const usageRef = db.collection('usage')
       .where('userId', '==', userId)
@@ -49,11 +56,10 @@ export async function checkUsageLimit(userId: string): Promise<boolean> {
 
 export async function incrementUsage(userId: string): Promise<void> {
   try {
-    const tier = await getSubscriptionTier(userId);
-    
     // Track usage for all tiers (for analytics)
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const db = getDb();
     
     const usageRef = db.collection('usage')
       .where('userId', '==', userId)
@@ -89,6 +95,7 @@ export async function getUsageStats(userId: string): Promise<{ current: number; 
     const tier = await getSubscriptionTier(userId);
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const db = getDb();
     
     const usageRef = db.collection('usage')
       .where('userId', '==', userId)

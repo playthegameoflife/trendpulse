@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { fetchSubscriptionInfo, fetchUsageStats, createStripeCheckout, SubscriptionTier, UsageStats } from '../services/subscriptionService';
-import { CreditCardIcon, SparklesIcon } from './icons';
+import { fetchSubscriptionInfo, SubscriptionTier, UsageStats } from '../services/subscriptionService';
+import { SparklesIcon } from './icons';
 
-const Subscription: React.FC = () => {
+interface SubscriptionProps {
+  onOpenPricing: () => void;
+}
+
+const Subscription: React.FC<SubscriptionProps> = ({ onOpenPricing }) => {
   const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
   const [usage, setUsage] = useState<UsageStats>({ current: 0, limit: 10, month: '' });
-  const [loading, setLoading] = useState(false);
-  const [upgrading, setUpgrading] = useState(false);
 
   useEffect(() => {
     loadSubscriptionInfo();
@@ -19,17 +21,6 @@ const Subscription: React.FC = () => {
       setUsage(info.usage);
     } catch (error) {
       console.error('Error loading subscription info:', error);
-    }
-  };
-
-  const handleUpgrade = async () => {
-    setUpgrading(true);
-    try {
-      const { url } = await createStripeCheckout();
-      window.location.href = url;
-    } catch (error: any) {
-      alert(error.message || 'Failed to start checkout. Please try again.');
-      setUpgrading(false);
     }
   };
 
@@ -71,27 +62,17 @@ const Subscription: React.FC = () => {
             </div>
             {isNearLimit && (
               <p className="text-xs text-red-600 mt-2">
-                You're running low on searches this month. Upgrade to Pro for unlimited searches.
+                You're running low on searches this month. Discover unlimited with Pro.
               </p>
             )}
           </div>
 
           <button
-            onClick={handleUpgrade}
-            disabled={upgrading}
-            className="w-full bg-purple-600 text-white font-semibold py-2.5 px-4 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+            onClick={onOpenPricing}
+            className="w-full bg-purple-600 text-white font-semibold py-2.5 px-4 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
           >
-            {upgrading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                Processing...
-              </>
-            ) : (
-              <>
-                <CreditCardIcon className="w-5 h-5" />
-                Upgrade to Pro
-              </>
-            )}
+            <SparklesIcon className="w-5 h-5" />
+            Discover unlimited
           </button>
         </>
       )}

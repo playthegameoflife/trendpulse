@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { signOut, User } from 'firebase/auth';
 import { auth } from '../services/firebaseConfig';
-import { UserIcon, ArrowRightOnRectangleIcon, CreditCardIcon } from './icons';
+import { UserIcon, ArrowRightOnRectangleIcon, SparklesIcon } from './icons';
 import { fetchSubscriptionInfo, SubscriptionTier } from '../services/subscriptionService';
 
 interface UserMenuProps {
   user: User;
+  onOpenPricing: () => void;
 }
 
-const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
+const UserMenu: React.FC<UserMenuProps> = ({ user, onOpenPricing }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
 
@@ -62,6 +63,16 @@ const UserMenu: React.FC<UserMenuProps> = ({ user }) => {
                 {subscriptionTier === 'pro' ? 'Pro Plan' : 'Free Plan'}
               </p>
             </div>
+            <button
+              onClick={() => {
+                onOpenPricing();
+                setIsOpen(false);
+              }}
+              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              <SparklesIcon className="w-4 h-4" />
+              View Plans
+            </button>
             <button
               onClick={handleSignOut}
               className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

@@ -2,11 +2,18 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-11-20.acacia',
+const stripeConfig = functions.config().stripe || {};
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || stripeConfig.secret_key || '', {
+  apiVersion: '2023-10-16',
 });
 
-const db = admin.firestore();
+// Lazy initialization to avoid circular dependency
+function getDb() {
+  if (!admin.apps.length) {
+    admin.initializeApp();
+  }
+  return admin.firestore();
+}
 
 export const stripeWebhook = functions.https.onRequest(async (req, res) => {
   const sig = req.headers['stripe-signature'];
@@ -16,7 +23,7 @@ export const stripeWebhook = functions.https.onRequest(async (req, res) => {
     return;
   }
 
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || stripeConfig.webhook_secret;
 
   if (!endpointSecret) {
     res.status(500).send('Missing STRIPE_WEBHOOK_SECRET');
@@ -75,6 +82,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 
   // Update user with Stripe customer ID
+  const db = getDb();
   await db.collection('users').doc(userId).update({
     stripeCustomerId: customerId,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -86,6 +94,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
   const subscriptionId = subscription.id;
   const status = subscription.status;
   const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+  const db = getDb();
 
   // Find user by Stripe customer ID
   const usersRef = db.collection('users').where('stripeCustomerId', '==', customerId).limit(1);
@@ -139,6 +148,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string;
+  const db = getDb();
 
   // Find user by Stripe customer ID
   const usersRef = db.collection('users').where('stripeCustomerId', '==', customerId).limit(1);

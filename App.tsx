@@ -11,6 +11,7 @@ import UserMenu from './components/UserMenu';
 import Subscription from './components/Subscription';
 import WelcomeBanner from './components/WelcomeBanner';
 import Onboarding from './components/Onboarding';
+import PricingPage from './components/PricingPage';
 
 const categories = ["All", "AI", "SaaS", "Health & Wellness", "E-commerce", "FinTech", "Gaming", "Creator Economy", "Future of Work"];
 const topicsPerPage = 12;
@@ -20,9 +21,10 @@ interface HeaderProps {
     businessContextIsSet: boolean;
     user: User | null;
     subscriptionTier: SubscriptionTier;
+    onOpenPricing: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onSetBusinessClick, businessContextIsSet, user, subscriptionTier }) => (
+const Header: React.FC<HeaderProps> = ({ onSetBusinessClick, businessContextIsSet, user, subscriptionTier, onOpenPricing }) => (
     <header className="sticky top-0 z-30 w-full bg-[#f5f5f7]/80 backdrop-blur-sm">
       <div className="container mx-auto px-6 h-20 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-[#1d1d1f] tracking-tight">TrendPulse</h1>
@@ -36,7 +38,15 @@ const Header: React.FC<HeaderProps> = ({ onSetBusinessClick, businessContextIsSe
                     My Business
                   </button>
               )}
-              {user && <UserMenu user={user} />}
+              {user && subscriptionTier === 'free' && (
+                  <button
+                    onClick={onOpenPricing}
+                    className="px-3 py-1.5 rounded-full text-sm font-semibold bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors"
+                  >
+                    Pro
+                  </button>
+              )}
+              {user && <UserMenu user={user} onOpenPricing={onOpenPricing} />}
           </nav>
       </div>
     </header>
@@ -72,9 +82,10 @@ interface BusinessContextPanelProps {
     currentContext: string;
     onSave: (newContext: string) => void;
     subscriptionTier: SubscriptionTier;
+    onOpenPricing: () => void;
 }
 
-const BusinessContextPanel: React.FC<BusinessContextPanelProps> = ({ isOpen, onClose, currentContext, onSave, subscriptionTier }) => {
+const BusinessContextPanel: React.FC<BusinessContextPanelProps> = ({ isOpen, onClose, currentContext, onSave, subscriptionTier, onOpenPricing }) => {
     const [localContext, setLocalContext] = useState(currentContext);
 
     useEffect(() => {
@@ -83,7 +94,8 @@ const BusinessContextPanel: React.FC<BusinessContextPanelProps> = ({ isOpen, onC
 
     const handleSave = () => {
         if (subscriptionTier === 'free') {
-            alert('Business context personalization is available in Pro tier only. Upgrade to Pro to unlock this feature.');
+            onClose();
+            onOpenPricing();
             return;
         }
         onSave(localContext);
@@ -121,7 +133,15 @@ const BusinessContextPanel: React.FC<BusinessContextPanelProps> = ({ isOpen, onC
                     </div>
                     <div className="p-6 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
                         <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Close</button>
-                        <button onClick={() => window.location.href = '/subscription'} className="px-4 py-2 text-sm font-semibold text-white bg-purple-600 border border-purple-600 rounded-md hover:bg-purple-700">Upgrade to Pro</button>
+                        <button 
+                            onClick={() => {
+                                onClose();
+                                onOpenPricing();
+                            }} 
+                            className="px-4 py-2 text-sm font-semibold text-white bg-purple-600 border border-purple-600 rounded-md hover:bg-purple-700"
+                        >
+                            Discover unlimited
+                        </button>
                     </div>
                 </div>
             </div>
@@ -189,6 +209,51 @@ const App: React.FC = () => {
     const [showSubscriptionBanner, setShowSubscriptionBanner] = useState<boolean>(false);
     const [showTimeRangeHint, setShowTimeRangeHint] = useState<boolean>(false);
     const [showCategoryHint, setShowCategoryHint] = useState<boolean>(false);
+    const [retryTrigger, setRetryTrigger] = useState<number>(0);
+    const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
+    const [stripeMessage, setStripeMessage] = useState<{ type: 'success' | 'canceled' | null; message: string }>({ type: null, message: '' });
+    
+    // Handle Stripe redirect query parameters
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const stripeParam = params.get('stripe');
+        
+        if (stripeParam === 'success') {
+            setStripeMessage({ 
+                type: 'success', 
+                message: 'Payment successful! Welcome to Pro. Your subscription is now active.' 
+            });
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                setStripeMessage({ type: null, message: '' });
+            }, 5000);
+        } else if (stripeParam === 'canceled') {
+            setStripeMessage({ 
+                type: 'canceled', 
+                message: 'Payment was canceled. No charges were made.' 
+            });
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                setStripeMessage({ type: null, message: '' });
+            }, 5000);
+        }
+    }, []); // Run once on mount to check URL params
+    
+    // Refresh subscription info when user is available and we have a success message
+    useEffect(() => {
+        if (user && stripeMessage.type === 'success') {
+            // Refresh subscription info after a short delay to allow webhook to process
+            setTimeout(() => {
+                fetchSubscriptionInfo().then(info => {
+                    setSubscriptionTier(info.tier);
+                }).catch(console.error);
+            }, 2000);
+        }
+    }, [user, stripeMessage.type]);
     
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -248,7 +313,7 @@ const App: React.FC = () => {
             return () => clearTimeout(timer);
         }
     }, [isFirstTime, user, businessContext]);
-    
+
     useEffect(() => {
         if (!user) return;
 
@@ -266,7 +331,7 @@ const App: React.FC = () => {
             }
         };
         loadTopics();
-    }, [user, timeRange, activeSearchQuery, businessContext, selectedCategory]);
+    }, [user, timeRange, activeSearchQuery, businessContext, selectedCategory, retryTrigger]);
     
     const sortedTopics = useMemo(() => {
         const sortableTopics = [...topics];
@@ -381,6 +446,16 @@ const App: React.FC = () => {
                 <div className="text-center text-red-600 bg-red-100 p-6 rounded-lg container mx-auto mt-10">
                     <h3 className="font-bold text-lg">Oops! Something went wrong.</h3>
                     <p className="mt-1">{error}</p>
+                    <button
+                        onClick={() => {
+                            setError(null);
+                            // Trigger a reload by incrementing retry trigger
+                            setRetryTrigger(prev => prev + 1);
+                        }}
+                        className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors font-semibold"
+                    >
+                        Try Again
+                    </button>
                 </div>
             );
         }
@@ -415,12 +490,54 @@ const App: React.FC = () => {
     return (
         <AuthGuard>
             <div className="min-h-screen bg-[#f5f5f7]">
+                {/* Pricing Modal */}
+                {showPricingModal && (
+                    <div className="fixed inset-0 z-50 overflow-hidden">
+                        <div 
+                            className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+                            onClick={() => setShowPricingModal(false)}
+                        />
+                        <div className="fixed inset-y-0 right-0 w-full max-w-4xl bg-[#f5f5f7] shadow-2xl transform transition-transform duration-300 ease-out overflow-y-auto">
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowPricingModal(false)}
+                                    className="absolute top-6 right-6 z-10 p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                                    aria-label="Close pricing"
+                                >
+                                    <XMarkIcon className="w-6 h-6" />
+                                </button>
+                                <PricingPage 
+                                    currentTier={subscriptionTier} 
+                                    onClose={() => setShowPricingModal(false)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
                 <Header 
                     onSetBusinessClick={() => setIsPanelOpen(true)} 
                     businessContextIsSet={!!businessContext} 
                     user={user}
                     subscriptionTier={subscriptionTier}
+                    onOpenPricing={() => setShowPricingModal(true)}
                 />
+                {/* Stripe Success/Cancel Message */}
+                {stripeMessage.type && (
+                    <div className={`container mx-auto px-6 py-4 ${
+                        stripeMessage.type === 'success' 
+                            ? 'bg-green-50 border border-green-200 text-green-800' 
+                            : 'bg-yellow-50 border border-yellow-200 text-yellow-800'
+                    } rounded-lg mx-4 mt-4 flex items-center justify-between`}>
+                        <p className="font-medium">{stripeMessage.message}</p>
+                        <button
+                            onClick={() => setStripeMessage({ type: null, message: '' })}
+                            className="ml-4 text-gray-500 hover:text-gray-700"
+                            aria-label="Dismiss"
+                        >
+                            <XMarkIcon className="w-5 h-5" />
+                        </button>
+                    </div>
+                )}
                 {showWelcome && user && (
                     <WelcomeBanner
                         userName={user.email || undefined}
@@ -433,6 +550,7 @@ const App: React.FC = () => {
                     currentContext={businessContext}
                     onSave={handleSaveContext}
                     subscriptionTier={subscriptionTier}
+                    onOpenPricing={() => setShowPricingModal(true)}
                 />
                 <Onboarding
                     isOpen={showOnboarding}
@@ -445,7 +563,7 @@ const App: React.FC = () => {
                     <div className="container mx-auto px-6">
                         {subscriptionTier === 'free' && showSubscriptionBanner && (
                             <div className="py-6">
-                                <Subscription />
+                                <Subscription onOpenPricing={() => setShowPricingModal(true)} />
                             </div>
                         )}
 
@@ -501,6 +619,7 @@ const App: React.FC = () => {
                                                 setTimeRange(range);
                                                 setCurrentPage(1);
                                                 setShowTimeRangeHint(false);
+                                                setError(null); // Clear error when switching time range
                                             }
                                         }}
                                         className={`w-full px-3 py-2 text-sm font-semibold rounded-md transition-all duration-300 ${
@@ -530,6 +649,7 @@ const App: React.FC = () => {
                                                         setSelectedCategory(category);
                                                         setCurrentPage(1);
                                                         setShowCategoryHint(false);
+                                                        setError(null); // Clear error when switching categories
                                                     }
                                                 }}
                                                 className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all duration-300 ${

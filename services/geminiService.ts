@@ -52,6 +52,26 @@ export const fetchTrendingTopics = async (
       throw new Error('Please sign in to access trending topics.');
     }
     
+    // Handle internal errors with more specific messages
+    if (error.code === 'functions/internal') {
+      // Extract detailed error message if available
+      const errorMessage = error.message || error.details || 'An unexpected error occurred';
+      
+      // Provide user-friendly messages based on context
+      if (errorMessage.includes('category') || category) {
+        throw new Error(`Unable to fetch topics for "${category || 'this category'}". Please try a different category or time range.`);
+      }
+      if (errorMessage.includes('API') || errorMessage.includes('Gemini')) {
+        throw new Error('The AI service is temporarily unavailable. Please try again in a moment.');
+      }
+      if (errorMessage.includes('JSON') || errorMessage.includes('parse')) {
+        throw new Error('Received invalid response from the server. Please try again.');
+      }
+      
+      // Use the original error message if it's informative
+      throw new Error(errorMessage || 'Failed to fetch trending topics. Please try again.');
+    }
+    
     throw new Error(error.message || 'Failed to fetch trending topics. Please try again.');
   }
 };
